@@ -1,0 +1,14 @@
+# APK Cleaner Tool — Dependencies
+# Cài: pip3 install -r requirements.txt
+
+# ── Core (bắt buộc) ─────────────────
+flask>=2.0
+
+# ── Native macOS App ──────────────────
+pywebview>=4.0
+
+# ── Dev/Testing ───────────────────────
+pytest>=7.0
+
+# ── Build macOS .app bundle ───────────
+# pyinstaller>=6.0    # chỉ cần khi build .app

@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APK Cleaner</title>
+<link rel="icon" href="/static/icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════ RESET & BASE ═══════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09090b;--bg2:#0f0f14;
+  --surface:#17171c;--surface2:#1e1e25;--surface3:#26262f;
+  --border:#2a2a35;--border2:#35354a;
+  --primary:#8b5cf6;--primary-h:#a78bfa;--primary-g:rgba(139,92,246,.12);--primary-s:rgba(139,92,246,.06);
+  --success:#22c55e;--success-g:rgba(34,197,94,.12);
+  --warn:#f59e0b;--warn-g:rgba(245,158,11,.12);
+  --error:#ef4444;--error-g:rgba(239,68,68,.12);
+  --txt:#f1f5f9;--txt2:#94a3b8;--txt3:#64748b;--txt4:#475569;
+  --r:12px;--r2:16px;--r3:20px;
+  --shadow:0 4px 24px rgba(0,0,0,.4);
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+html{font-size:14px}
+body{
+  font-family:var(--font);color:var(--txt);background:var(--bg);
+  line-height:1.6;min-height:100vh;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--primary);text-decoration:none}
+a:hover{color:var(--primary-h);text-decoration:underline}
+button{font-family:var(--font);cursor:pointer;border:none;outline:none}
+input{font-family:var(--font);outline:none}
+
+/* ═══════════════ LAYOUT ═══════════════ */
+.app{display:flex;flex-direction:column;min-height:100vh;position:relative}
+.bg-deco{
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 15% 0%,rgba(139,92,246,.07),transparent),
+    radial-gradient(ellipse 50% 40% at 85% 100%,rgba(236,72,153,.04),transparent);
+}
+main{flex:1;position:relative;z-index:1;max-width:720px;width:100%;margin:0 auto;padding:0 24px}
+
+/* ═══════════════ HEADER ═══════════════ */
+.header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(9,9,11,.75);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+}
+.header-inner{
+  max-width:720px;margin:0 auto;padding:14px 24px;
+  display:flex;align-items:center;gap:20px;
+}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo img{width:32px;height:32px;border-radius:8px}
+.logo span{font-weight:700;font-size:15px;color:var(--txt)}
+
+/* ── Step Indicator ── */
+.steps{display:flex;align-items:center;gap:0;flex:1;justify-content:flex-end}
+.step-item{display:flex;align-items:center;gap:8px;padding:6px 0}
+.step-dot{
+  width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;
+  background:var(--surface2);color:var(--txt3);
+  transition:all .3s ease;flex-shrink:0;
+}
+.step-dot svg{width:14px;height:14px}
+.step-label{font-size:12px;font-weight:500;color:var(--txt4);transition:color .3s;white-space:nowrap}
+.step-line{width:32px;height:2px;background:var(--border);margin:0 4px;border-radius:1px;transition:background .3s}
+
+.step-item.done .step-dot{background:var(--success-g);color:var(--success)}
+.step-item.done .step-label{color:var(--success)}
+.step-item.active .step-dot{background:var(--primary-g);color:var(--primary);box-shadow:0 0 0 3px var(--primary-s)}
+.step-item.active .step-label{color:var(--primary)}
+.step-line.done{background:var(--success)}
+
+/* ═══════════════ PAGES ═══════════════ */
+.page{display:none;flex-direction:column;padding:32px 0 48px;opacity:0;transform:translateY(12px)}
+.page.active{display:flex;animation:fadeUp .4s ease forwards}
+@keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
+
+/* ═══════════════ PAGE 1: WELCOME ═══════════════ */
+.hero{text-align:center;padding:24px 0 32px}
+.hero-icon{
+  width:88px;height:88px;border-radius:22px;margin:0 auto 20px;
+  background:linear-gradient(135deg,var(--primary),#ec4899);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 32px rgba(139,92,246,.25);
+  overflow:hidden;
+}
+.hero-icon img{width:100%;height:100%;object-fit:cover}
+.hero h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px}
+.hero p{color:var(--txt2);font-size:15px;max-width:400px;margin:0 auto}
+
+/* ── Drop Zone ── */
+.drop-zone{
+  border:2px dashed var(--border2);border-radius:var(--r2);
+  padding:48px 32px;text-align:center;
+  cursor:pointer;transition:all .3s ease;position:relative;
+  background:var(--surface);
+}
+.drop-zone:hover,.drop-zone.drag-over{
+  border-color:var(--primary);background:rgba(139,92,246,.04);
+  box-shadow:inset 0 0 48px rgba(139,92,246,.03);
+}
+.drop-zone.has-file{
+  border-style:solid;border-color:var(--primary);
+  background:var(--primary-s);padding:24px 32px;
+}
+.dz-icon{font-size:48px;margin-bottom:12px;display:block;opacity:.6}
+.dz-title{font-size:16px;font-weight:600;color:var(--txt);margin-bottom:4px}
+.dz-sub{font-size:13px;color:var(--txt3)}
+.dz-file{display:flex;align-items:center;gap:16px;text-align:left}
+.dz-file-icon{
+  width:52px;height:52px;border-radius:14px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--primary),#ec4899);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;color:white;font-weight:700;
+}
+.dz-file-info h3{font-size:15px;font-weight:600;word-break:break-all}
+.dz-file-info p{font-size:12px;color:var(--txt2);margin-top:2px}
+.dz-change{
+  margin-left:auto;padding:8px 16px;border-radius:8px;
+  background:var(--surface2);color:var(--txt2);font-size:12px;font-weight:500;
+  border:1px solid var(--border);cursor:pointer;flex-shrink:0;
+  transition:all .2s;
+}
+.dz-change:hover{background:var(--surface3);color:var(--txt)}
+
+.dz-progress{
+  margin-top:12px;height:4px;border-radius:2px;background:var(--border);
+  overflow:hidden;display:none;
+}
+.dz-progress.active{display:block}
+.dz-progress-bar{height:100%;background:var(--primary);border-radius:2px;width:0;transition:width .3s}
+
+/* ── Path Input ── */
+.path-section{
+  margin-top:16px;text-align:center;
+}
+.path-toggle{
+  font-size:12px;color:var(--txt3);cursor:pointer;
+  display:inline-flex;align-items:center;gap:4px;
+  transition:color .2s;
+}
+.path-toggle:hover{color:var(--txt2)}
+.path-row{
+  display:none;margin-top:10px;gap:8px;
+  flex-wrap:wrap;justify-content:center;align-items:center;
+}
+.path-row.show{display:flex}
+.path-row input{
+  flex:1;min-width:200px;padding:10px 14px;border-radius:var(--r);
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--txt);font-size:13px;
+}
+.path-row input:focus{border-color:var(--primary)}
+.path-row button{
+  padding:10px 18px;border-radius:var(--r);
+  background:var(--surface2);color:var(--txt2);font-size:13px;font-weight:500;
+  border:1px solid var(--border);transition:all .2s;
+}
+.path-row button:hover{background:var(--surface3);color:var(--txt)}
+
+/* ── Prerequisites ── */
+.prereqs{margin-top:28px}
+.prereq-title{font-size:12px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.prereq-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.prereq-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px;text-align:center;
+  transition:all .3s;
+}
+.prereq-card.ok{border-color:rgba(34,197,94,.3)}
+.prereq-card.fail{border-color:rgba(239,68,68,.3)}
+.prereq-icon{font-size:20px;margin-bottom:6px}
+.prereq-name{font-size:12px;font-weight:600;margin-bottom:2px}
+.prereq-status{font-size:11px}
+.prereq-card.ok .prereq-status{color:var(--success)}
+.prereq-card.fail .prereq-status{color:var(--error)}
+.prereq-card.loading .prereq-icon{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.prereq-card.fail a{color:var(--primary);font-size:11px;display:inline-block;margin-top:4px}
+
+/* ── Feature Tags ── */
+.features{display:flex;gap:8px;justify-content:center;margin-top:24px;flex-wrap:wrap}
+.feat-tag{
+  font-size:12px;font-weight:500;padding:6px 14px;border-radius:20px;
+  background:var(--surface);border:1px solid var(--border);color:var(--txt2);
+  display:flex;align-items:center;gap:6px;
+}
+.feat-tag .dot{width:6px;height:6px;border-radius:50%}
+
+/* ── CTA Button ── */
+.btn-primary{
+  padding:14px 32px;border-radius:var(--r);
+  background:var(--primary);color:white;font-size:15px;font-weight:600;
+  transition:all .25s ease;display:inline-flex;align-items:center;gap:8px;
+  box-shadow:0 2px 12px rgba(139,92,246,.25);
+}
+.btn-primary:hover{background:var(--primary-h);transform:translateY(-1px);box-shadow:0 6px 20px rgba(139,92,246,.35)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:.4;pointer-events:none;transform:none}
+
+.btn-secondary{
+  padding:12px 24px;border-radius:var(--r);
+  background:var(--surface);color:var(--txt2);font-size:14px;font-weight:500;
+  border:1px solid var(--border);transition:all .2s;
+  display:inline-flex;align-items:center;gap:8px;
+}
+.btn-secondary:hover{background:var(--surface2);color:var(--txt);border-color:var(--border2)}
+
+.btn-row{display:flex;gap:12px;justify-content:center;margin-top:32px}
+
+/* ═══════════════ PAGE 2: OPTIONS ═══════════════ */
+.section-title{
+  font-size:13px;font-weight:700;color:var(--txt2);text-transform:uppercase;
+  letter-spacing:.5px;margin:28px 0 12px;display:flex;align-items:center;gap:8px;
+}
+.section-title:first-child{margin-top:0}
+
+.opt-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r2);overflow:hidden;
+}
+.opt-row{
+  display:flex;align-items:center;padding:16px 20px;gap:16px;
+  cursor:pointer;transition:background .15s;
+}
+.opt-row:hover{background:var(--surface2)}
+.opt-row+.opt-row{border-top:1px solid var(--border)}
+.opt-text{flex:1}
+.opt-text h4{font-size:14px;font-weight:600;margin-bottom:2px}
+.opt-text p{font-size:12px;color:var(--txt3);line-height:1.4}
+
+/* ── Toggle ── */
+.toggle{
+  width:42px;height:24px;border-radius:12px;
+  background:var(--border2);position:relative;flex-shrink:0;
+  transition:background .2s;cursor:pointer;
+}
+.toggle.on{background:var(--primary)}
+.toggle::after{
+  content:'';position:absolute;top:3px;left:3px;
+  width:18px;height:18px;border-radius:50%;
+  background:white;transition:transform .2s ease;
+  box-shadow:0 1px 3px rgba(0,0,0,.3);
+}
+.toggle.on::after{transform:translateX(18px)}
+
+/* ── Input ── */
+.input-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r2);padding:16px 20px;
+}
+.input-row{display:flex;align-items:center;gap:10px}
+.input-row input{
+  flex:1;padding:10px 14px;border-radius:var(--r);
+  background:var(--bg2);border:1px solid var(--border);
+  color:var(--txt);font-size:13px;transition:border-color .2s;
+}
+.input-row input:focus{border-color:var(--primary)}
+.input-row label{font-size:12px;color:var(--txt3);min-width:100px}
+.input-btn{
+  padding:8px 14px;border-radius:var(--r);
+  background:var(--surface2);color:var(--txt2);font-size:12px;
+  border:1px solid var(--border);transition:all .2s;flex-shrink:0;
+}
+.input-btn:hover{background:var(--surface3);color:var(--txt)}
+
+.info-note{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:12px 16px;border-radius:var(--r);
+  background:var(--primary-s);border:1px solid rgba(139,92,246,.15);
+  font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:12px;
+}
+.info-note span{color:var(--primary);font-size:14px;flex-shrink:0;margin-top:1px}
+
+/* ═══════════════ PAGE 3: PROCESSING ═══════════════ */
+.proc-file{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 20px;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--r2);margin-bottom:24px;
+}
+.proc-file-icon{
+  width:44px;height:44px;border-radius:12px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--primary),#ec4899);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;color:white;font-weight:700;
+}
+.proc-file-name{font-size:14px;font-weight:600;word-break:break-all}
+.proc-file-size{font-size:12px;color:var(--txt3)}
+
+/* ── Process Steps ── */
+.proc-steps{display:flex;flex-direction:column;gap:0;margin-bottom:24px}
+.proc-step{
+  display:flex;align-items:flex-start;gap:16px;
+  padding:16px 20px;position:relative;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:0;
+  transition:all .3s;
+}
+.proc-step:first-child{border-radius:var(--r2) var(--r2) 0 0}
+.proc-step:last-child{border-radius:0 0 var(--r2) var(--r2)}
+.proc-step+.proc-step{border-top:none}
+
+.proc-step.running{background:var(--primary-s);border-color:rgba(139,92,246,.2)}
+.proc-step.done{background:var(--success-g);border-color:rgba(34,197,94,.15)}
+.proc-step.error{background:var(--error-g);border-color:rgba(239,68,68,.15)}
+
+.proc-step-dot{
+  width:36px;height:36px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;
+  background:var(--surface2);
+  transition:all .3s;
+}
+.proc-step.idle .proc-step-dot{background:var(--surface2);color:var(--txt4)}
+.proc-step.running .proc-step-dot{background:var(--primary-g);color:var(--primary)}
+.proc-step.done .proc-step-dot{background:var(--success-g);color:var(--success)}
+.proc-step.error .proc-step-dot{background:var(--error-g);color:var(--error)}
+
+.proc-step-text{flex:1}
+.proc-step-text h4{font-size:14px;font-weight:600;margin-bottom:2px}
+.proc-step-text p{font-size:12px;color:var(--txt3)}
+
+.proc-step-status{
+  font-size:11px;font-weight:600;color:var(--txt4);
+  padding:4px 10px;border-radius:20px;background:var(--surface2);
+  white-space:nowrap;flex-shrink:0;transition:all .3s;
+}
+.proc-step.running .proc-step-status{background:var(--primary-g);color:var(--primary)}
+.proc-step.done .proc-step-status{background:var(--success-g);color:var(--success)}
+.proc-step.error .proc-step-status{background:var(--error-g);color:var(--error)}
+
+.spinner{animation:spin .8s linear infinite;display:inline-block}
+
+/* ── Log Viewer ── */
+.log-label{font-size:12px;font-weight:600;color:var(--txt3);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.log-box{
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--r);
+  padding:16px;font-family:'Menlo','SF Mono','Fira Code',monospace;font-size:12px;
+  line-height:1.7;max-height:220px;overflow-y:auto;color:var(--txt3);
+  scroll-behavior:smooth;
+}
+.log-box::-webkit-scrollbar{width:6px}
+.log-box::-webkit-scrollbar-track{background:transparent}
+.log-box::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.log-line{display:flex;gap:8px}
+.log-time{color:var(--txt4);flex-shrink:0}
+.log-msg{flex:1;word-break:break-word}
+.log-msg.info{color:var(--txt2)}
+.log-msg.success{color:var(--success)}
+.log-msg.warning{color:var(--warn)}
+.log-msg.error{color:var(--error)}
+.log-msg.debug{color:var(--txt4)}
+.log-msg.step{color:var(--primary);font-weight:600}
+
+/* ═══════════════ PAGE 4: RESULTS ═══════════════ */
+.result-hero{text-align:center;padding:40px 0 24px}
+.result-icon{font-size:64px;margin-bottom:16px;display:block}
+.result-icon.animate{animation:bounceIn .6s ease}
+@keyframes bounceIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+.result-hero h2{font-size:24px;font-weight:800;margin-bottom:6px}
+.result-hero p{color:var(--txt2);font-size:14px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px 0}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:20px 16px;text-align:center;
+}
+.stat-val{font-size:28px;font-weight:800;line-height:1}
+.stat-label{font-size:11px;color:var(--txt3);margin-top:6px;font-weight:500}
+.stat-card.highlight{border-color:rgba(139,92,246,.3)}
+.stat-card.highlight .stat-val{color:var(--primary)}
+
+.output-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r2);padding:16px 20px;
+  display:flex;align-items:center;gap:14px;margin-top:16px;
+}
+.output-card .icon{font-size:24px;flex-shrink:0}
+.output-card .info{flex:1}
+.output-card .info h4{font-size:14px;font-weight:600;word-break:break-all}
+.output-card .info p{font-size:12px;color:var(--txt3)}
+
+/* ═══════════════ ERROR BANNER ═══════════════ */
+.error-banner{
+  background:var(--error-g);border:1px solid rgba(239,68,68,.2);
+  border-radius:var(--r);padding:16px 20px;margin-top:16px;
+  display:flex;align-items:flex-start;gap:12px;
+}
+.error-banner .icon{font-size:20px;flex-shrink:0;margin-top:1px}
+.error-banner .msg{flex:1}
+.error-banner .msg h4{font-size:14px;font-weight:600;color:var(--error);margin-bottom:4px}
+.error-banner .msg p{font-size:12px;color:var(--txt2);line-height:1.5}
+
+/* ═══════════════ RESPONSIVE ═══════════════ */
+@media(max-width:600px){
+  .header-inner{flex-wrap:wrap}
+  .prereq-list{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .step-label{display:none}
+}
+
+/* ═══════════════ SCROLLBAR ═══════════════ */
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+
+/* ═══════════════ UTILITIES ═══════════════ */
+.hidden{display:none!important}
+.mt-8{margin-top:8px}.mt-16{margin-top:16px}.mt-24{margin-top:24px}
+.text-center{text-align:center}
+.text-sm{font-size:12px}
+.text-muted{color:var(--txt3)}
+</style>
+</head>
+
+<body>
+<div class="app">
+<div class="bg-deco"></div>
+
+<!-- ═══════════ HEADER ═══════════ -->
+<header class="header">
+<div class="header-inner">
+  <div class="logo">
+    <img src="/static/icon.png" alt="APK Cleaner">
+    <span>APK Cleaner</span>
+  </div>
+  <div class="steps" id="step-bar">
+    <div class="step-item active" data-step="0">
+      <div class="step-dot"><span>1</span></div>
+      <span class="step-label">Chọn file</span>
+    </div>
+    <div class="step-line" data-line="0"></div>
+    <div class="step-item" data-step="1">
+      <div class="step-dot"><span>2</span></div>
+      <span class="step-label">Cài đặt</span>
+    </div>
+    <div class="step-line" data-line="1"></div>
+    <div class="step-item" data-step="2">
+      <div class="step-dot"><span>3</span></div>
+      <span class="step-label">Xử lý</span>
+    </div>
+    <div class="step-line" data-line="2"></div>
+    <div class="step-item" data-step="3">
+      <div class="step-dot"><span>4</span></div>
+      <span class="step-label">Hoàn thành</span>
+    </div>
+  </div>
+</div>
+</header>
+
+<main>
+
+<!-- ═══════════ PAGE 1: CHỌN FILE ═══════════ -->
+<section class="page active" id="page-0">
+  <div class="hero">
+    <div class="hero-icon"><img src="/static/icon.png" alt=""></div>
+    <h1>APK Cleaner</h1>
+    <p>Tự động gỡ quảng cáo và chặn chuyển hướng Play Store trong file APK Android</p>
+  </div>
+
+  <!-- Drop Zone -->
+  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <div id="dz-empty">
+      <span class="dz-icon">📂</span>
+      <div class="dz-title">Kéo & thả file APK vào đây</div>
+      <div class="dz-sub">hoặc bấm để chọn file từ máy tính</div>
+    </div>
+    <div id="dz-filled" class="dz-file hidden">
+      <div class="dz-file-icon">APK</div>
+      <div class="dz-file-info">
+        <h3 id="dz-fname">—</h3>
+        <p id="dz-fsize">—</p>
+      </div>
+      <button class="dz-change" onclick="event.stopPropagation(); resetFile()">Đổi file</button>
+    </div>
+    <div class="dz-progress" id="dz-progress">
+      <div class="dz-progress-bar" id="dz-bar"></div>
+    </div>
+  </div>
+  <input type="file" id="file-input" accept=".apk" hidden>
+
+  <!-- Path Input -->
+  <div class="path-section">
+    <div class="path-toggle" onclick="togglePathInput()">▾ hoặc nhập đường dẫn file APK</div>
+    <div class="path-row" id="path-row">
+      <input type="text" id="path-input" placeholder="/đường/dẫn/tới/app.apk">
+      <button onclick="setPath()">Xác nhận</button>
+    </div>
+  </div>
+
+  <!-- Prerequisites -->
+  <div class="prereqs">
+    <div class="prereq-title">Trạng thái công cụ</div>
+    <div class="prereq-list" id="prereq-list">
+      <div class="prereq-card loading" id="pq-java">
+        <div class="prereq-icon">⏳</div>
+        <div class="prereq-name">Java JDK</div>
+        <div class="prereq-status">Đang kiểm tra…</div>
+      </div>
+      <div class="prereq-card loading" id="pq-apktool">
+        <div class="prereq-icon">⏳</div>
+        <div class="prereq-name">APKTool</div>
+        <div class="prereq-status">Đang kiểm tra…</div>
+      </div>
+      <div class="prereq-card loading" id="pq-signer">
+        <div class="prereq-icon">⏳</div>
+        <div class="prereq-name">APK Signer</div>
+        <div class="prereq-status">Đang kiểm tra…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <div class="features">
+    <div class="feat-tag"><span class="dot" style="background:var(--primary)"></span> Hỗ trợ 35+ Ad SDK</div>
+    <div class="feat-tag"><span class="dot" style="background:var(--success)"></span> Debug signing tự động</div>
+    <div class="feat-tag"><span class="dot" style="background:var(--warn)"></span> An toàn — không xoá code</div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-primary" id="btn-next-1" disabled onclick="goto(1)">
+      Tiếp tục <span style="opacity:.7">→</span>
+    </button>
+  </div>
+</section>
+
+<!-- ═══════════ PAGE 2: CÀI ĐẶT ═══════════ -->
+<section class="page" id="page-1">
+  <div class="section-title">⚙️  Tùy chọn xử lý</div>
+  <div class="opt-card">
+    <div class="opt-row" onclick="toggleOpt('ads')">
+      <div class="opt-text">
+        <h4>🚫  Xoá quảng cáo</h4>
+        <p>Vô hiệu hoá tất cả SDK quảng cáo: Google AdMob, Unity, Facebook, AppLovin và 30+ SDK khác</p>
+      </div>
+      <div class="toggle on" id="t-ads"></div>
+    </div>
+    <div class="opt-row" onclick="toggleOpt('store')">
+      <div class="opt-text">
+        <h4>🛍️  Chặn Play Store</h4>
+        <p>Ngăn app mở trang Play Store, hộp thoại "Đánh giá app", hoặc link tải app khác</p>
+      </div>
+      <div class="toggle on" id="t-store"></div>
+    </div>
+    <div class="opt-row" onclick="toggleOpt('xml')">
+      <div class="opt-text">
+        <h4>📄  Dọn file XML</h4>
+        <p>Gỡ khai báo quảng cáo trong AndroidManifest.xml và các layout XML chứa AdView</p>
+      </div>
+      <div class="toggle on" id="t-xml"></div>
+    </div>
+  </div>
+
+  <div class="section-title">📁  Thư mục lưu kết quả</div>
+  <div class="input-card">
+    <div class="input-row">
+      <input type="text" id="output-dir" value="">
+      <!--<button class="input-btn" onclick="browseDir()">Chọn…</button>-->
+    </div>
+  </div>
+
+  <div class="section-title">🔐  Ký số (tuỳ chọn)</div>
+  <div class="info-note">
+    <span>💡</span>
+    <div>Mặc định: dùng <strong>debug key</strong> tự động — đủ để cài trên điện thoại. Chỉ cần nhập keystore nếu bạn muốn phân phối lại app.</div>
+  </div>
+  <div class="input-card">
+    <div class="input-row">
+      <label>Keystore (.jks)</label>
+      <input type="text" id="keystore-path" placeholder="Để trống = debug key">
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-secondary" onclick="goto(0)">← Quay lại</button>
+    <button class="btn-primary" onclick="goto(2)">Bắt đầu xử lý ▶</button>
+  </div>
+</section>
+
+<!-- ═══════════ PAGE 3: XỬ LÝ ═══════════ -->
+<section class="page" id="page-2">
+  <div class="proc-file" id="proc-file">
+    <div class="proc-file-icon">APK</div>
+    <div>
+      <div class="proc-file-name" id="proc-fname">—</div>
+      <div class="proc-file-size" id="proc-fsize">—</div>
+    </div>
+  </div>
+
+  <div class="proc-steps" id="proc-steps">
+    <div class="proc-step idle" id="ps-0">
+      <div class="proc-step-dot">🔍</div>
+      <div class="proc-step-text">
+        <h4>Kiểm tra công cụ</h4>
+        <p>Xác nhận Java, APKTool, Signer sẵn sàng</p>
+      </div>
+      <div class="proc-step-status">Chờ</div>
+    </div>
+    <div class="proc-step idle" id="ps-1">
+      <div class="proc-step-dot">📦</div>
+      <div class="proc-step-text">
+        <h4>Giải nén APK</h4>
+        <p>Chuyển .apk thành code Smali + XML</p>
+      </div>
+      <div class="proc-step-status">Chờ</div>
+    </div>
+    <div class="proc-step idle" id="ps-2">
+      <div class="proc-step-dot">🧹</div>
+      <div class="proc-step-text">
+        <h4>Xoá quảng cáo &amp; chặn Play Store</h4>
+        <p>Quét, phát hiện, và vô hiệu hoá Ads</p>
+      </div>
+      <div class="proc-step-status">Chờ</div>
+    </div>
+    <div class="proc-step idle" id="ps-3">
+      <div class="proc-step-dot">✍️</div>
+      <div class="proc-step-text">
+        <h4>Đóng gói &amp; Ký số</h4>
+        <p>Tạo APK mới + ký số sẵn sàng cài đặt</p>
+      </div>
+      <div class="proc-step-status">Chờ</div>
+    </div>
+  </div>
+
+  <div class="log-label">📋  Nhật ký xử lý</div>
+  <div class="log-box" id="log-box"></div>
+
+  <div id="proc-error" class="hidden"></div>
+
+  <div class="btn-row" id="proc-nav">
+    <!-- Shown after completion/error -->
+  </div>
+</section>
+
+<!-- ═══════════ PAGE 4: HOÀN THÀNH ═══════════ -->
+<section class="page" id="page-3">
+  <div class="result-hero" id="result-hero">
+    <span class="result-icon animate" id="result-icon"></span>
+    <h2 id="result-title"></h2>
+    <p id="result-sub"></p>
+  </div>
+
+  <div class="stats-grid" id="stats-grid"></div>
+
+  <div id="output-info"></div>
+
+  <div class="btn-row">
+    <button class="btn-secondary" onclick="resetAll()">Xử lý file khác</button>
+    <button class="btn-primary" id="btn-open-folder" onclick="openFolder()">
+      📁  Mở thư mục kết quả
+    </button>
+  </div>
+</section>
+
+</main>
+</div>
+
+<!-- ═══════════════ JAVASCRIPT ═══════════════ -->
+<script>
+// ── STATE ────────────────────────────
+const state = {
+  apkPath: '',
+  apkName: '',
+  apkSize: 0,
+  currentPage: 0,
+  options: { removeAds: true, blockStore: true, cleanXml: true, keystore: '', outputDir: '' },
+  report: null,
+  outputFile: '',
+  outputDir: '',
+};
+
+let eventSource = null;
+
+// ── INIT ─────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  checkPrereqs();
+  loadConfig();
+  setupDropZone();
+  setupFileInput();
+});
+
+// ── PREREQUISITES ────────────────────
+async function checkPrereqs() {
+  try {
+    const res = await fetch('/api/check');
+    const data = await res.json();
+    updatePrereq('pq-java',    data.java.ok,    data.java.ok ? data.java.version : 'Chưa cài', 'https://adoptium.net/');
+    updatePrereq('pq-apktool', data.apktool.ok, data.apktool.ok ? 'Sẵn sàng' : 'Chưa có',     'https://ibotpeaches.github.io/Apktool/');
+    updatePrereq('pq-signer',  data.signer.ok,  data.signer.ok  ? 'Sẵn sàng' : 'Chưa có',     'https://github.com/patrickfav/uber-apk-signer/releases');
+  } catch (e) {
+    console.error('Prereq check failed:', e);
+  }
+}
+
+function updatePrereq(id, ok, status, downloadUrl) {
+  const el = document.getElementById(id);
+  el.classList.remove('loading');
+  el.classList.add(ok ? 'ok' : 'fail');
+  el.querySelector('.prereq-icon').textContent = ok ? '✅' : '❌';
+  el.querySelector('.prereq-status').innerHTML = ok
+    ? status
+    : `${status} — <a href="${downloadUrl}" target="_blank">Tải về ↗</a>`;
+}
+
+// ── CONFIG ───────────────────────────
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    const data = await res.json();
+    state.options.outputDir = data.outputDir;
+    document.getElementById('output-dir').value = data.outputDir;
+  } catch (e) { /* ignore */ }
+}
+
+// ── DRAG & DROP ──────────────────────
+function setupDropZone() {
+  const dz = document.getElementById('drop-zone');
+  ['dragenter','dragover'].forEach(e =>
+    dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('drag-over'); }));
+  ['dragleave','drop'].forEach(e =>
+    dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('drag-over'); }));
+  dz.addEventListener('drop', ev => {
+    const file = ev.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+}
+
+function setupFileInput() {
+  document.getElementById('file-input').addEventListener('change', function() {
+    if (this.files[0]) handleFile(this.files[0]);
+  });
+}
+
+async function handleFile(file) {
+  if (!file.name.toLowerCase().endsWith('.apk')) {
+    alert('Chỉ chấp nhận file .apk');
+    return;
+  }
+  showFileInfo(file.name, file.size, true);
+
+  // Upload
+  const prog = document.getElementById('dz-progress');
+  const bar  = document.getElementById('dz-bar');
+  prog.classList.add('active');
+
+  try {
+    const data = await uploadFile(file, pct => { bar.style.width = pct + '%'; });
+    state.apkPath = data.path;
+    state.apkName = data.name;
+    state.apkSize = data.size;
+    prog.classList.remove('active');
+    document.getElementById('btn-next-1').disabled = false;
+  } catch (e) {
+    alert('Upload thất bại: ' + e);
+    resetFile();
+  }
+}
+
+function uploadFile(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const form = new FormData();
+    form.append('file', file);
+    xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(Math.round(e.loaded/e.total*100)); };
+    xhr.onload = () => {
+      if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
+      else { try { reject(JSON.parse(xhr.responseText).error); } catch { reject('Upload error'); } }
+    };
+    xhr.onerror = () => reject('Network error');
+    xhr.open('POST', '/api/upload');
+    xhr.send(form);
+  });
+}
+
+function showFileInfo(name, size, isUploading) {
+  const dz = document.getElementById('drop-zone');
+  dz.classList.add('has-file');
+  document.getElementById('dz-empty').classList.add('hidden');
+  document.getElementById('dz-filled').classList.remove('hidden');
+  document.getElementById('dz-fname').textContent = name;
+  document.getElementById('dz-fsize').textContent = formatSize(size) + (isUploading ? ' — đang tải lên…' : '');
+}
+
+function resetFile() {
+  state.apkPath = '';
+  state.apkName = '';
+  state.apkSize = 0;
+  const dz = document.getElementById('drop-zone');
+  dz.classList.remove('has-file');
+  document.getElementById('dz-empty').classList.remove('hidden');
+  document.getElementById('dz-filled').classList.add('hidden');
+  document.getElementById('dz-progress').classList.remove('active');
+  document.getElementById('btn-next-1').disabled = true;
+  document.getElementById('file-input').value = '';
+}
+
+// ── PATH INPUT ───────────────────────
+function togglePathInput() {
+  document.getElementById('path-row').classList.toggle('show');
+}
+
+async function setPath() {
+  const path = document.getElementById('path-input').value.trim();
+  if (!path) return;
+  try {
+    const res = await fetch('/api/set-path', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({path})
+    });
+    if (!res.ok) { const d = await res.json(); alert(d.error); return; }
+    const data = await res.json();
+    state.apkPath = data.path;
+    state.apkName = data.name;
+    state.apkSize = data.size;
+    showFileInfo(data.name, data.size, false);
+    document.getElementById('dz-fsize').textContent = formatSize(data.size);
+    document.getElementById('btn-next-1').disabled = false;
+  } catch (e) { alert('Lỗi: ' + e); }
+}
+
+// ── OPTIONS ──────────────────────────
+function toggleOpt(key) {
+  const t = document.getElementById('t-' + key);
+  const on = !t.classList.contains('on');
+  t.classList.toggle('on', on);
+  if (key === 'ads')   state.options.removeAds = on;
+  if (key === 'store') state.options.blockStore = on;
+  if (key === 'xml')   state.options.cleanXml = on;
+}
+
+// ── NAVIGATION ───────────────────────
+function goto(pageIdx) {
+  // Hide current
+  const curr = document.getElementById('page-' + state.currentPage);
+  if (curr) { curr.classList.remove('active'); curr.style.display = 'none'; }
+
+  // Show target
+  const target = document.getElementById('page-' + pageIdx);
+  target.style.display = 'flex';
+  void target.offsetWidth; // reflow
+  target.classList.add('active');
+
+  state.currentPage = pageIdx;
+  updateStepBar(pageIdx);
+
+  // Page-specific init
+  if (pageIdx === 1) {
+    state.options.outputDir = document.getElementById('output-dir').value || state.options.outputDir;
+  }
+  if (pageIdx === 2) {
+    state.options.outputDir = document.getElementById('output-dir').value;
+    state.options.keystore  = document.getElementById('keystore-path').value;
+    startPipeline();
+  }
+}
+
+function updateStepBar(active) {
+  document.querySelectorAll('.step-item').forEach((el, i) => {
+    el.classList.remove('done','active');
+    if (i < active) el.classList.add('done');
+    else if (i === active) el.classList.add('active');
+
+    const dot = el.querySelector('.step-dot span');
+    if (i < active) dot.innerHTML = '✓';
+    else dot.textContent = String(i + 1);
+  });
+  document.querySelectorAll('.step-line').forEach((el, i) => {
+    el.classList.toggle('done', i < active);
+  });
+}
+
+// ── PIPELINE ─────────────────────────
+async function startPipeline() {
+  // Update file display
+  document.getElementById('proc-fname').textContent = state.apkName;
+  document.getElementById('proc-fsize').textContent = formatSize(state.apkSize);
+
+  // Reset steps
+  for (let i = 0; i < 4; i++) setStepState(i, 'idle', 'Chờ');
+  clearLog();
+  document.getElementById('proc-error').classList.add('hidden');
+  document.getElementById('proc-error').innerHTML = '';
+  document.getElementById('proc-nav').innerHTML = '';
+
+  // Start SSE listener first
+  eventSource = new EventSource('/api/events');
+  eventSource.onmessage = e => {
+    const d = JSON.parse(e.data);
+    handleEvent(d);
+  };
+  eventSource.onerror = () => {
+    addLog('Mất kết nối với server', 'error');
+  };
+
+  // Start pipeline
+  try {
+    const res = await fetch('/api/start', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        apkPath: state.apkPath,
+        options: state.options,
+      }),
+    });
+    if (!res.ok) {
+      const d = await res.json();
+      addLog('Lỗi: ' + d.error, 'error');
+    }
+  } catch (e) {
+    addLog('Không thể kết nối server: ' + e, 'error');
+  }
+}
+
+function handleEvent(d) {
+  switch (d.type) {
+    case 'step':
+      const labels = { running: 'Đang chạy…', done: '✓ Xong', error: '✗ Lỗi', idle: 'Chờ' };
+      setStepState(d.index, d.state, labels[d.state] || d.state);
+      break;
+    case 'log':
+      addLog(d.message, d.level);
+      break;
+    case 'done':
+      state.report = d.report;
+      state.outputFile = d.outputFile;
+      state.outputDir = d.outputDir;
+      if (eventSource) eventSource.close();
+      setTimeout(() => goto(3), 800);
+      showResults(d);
+      break;
+    case 'fatal':
+      addLog('❌ ' + d.message, 'error');
+      if (eventSource) eventSource.close();
+      showError(d.message);
+      break;
+    case 'ping':
+      break;
+  }
+}
+
+function setStepState(idx, st, label) {
+  const el = document.getElementById('ps-' + idx);
+  if (!el) return;
+  el.className = 'proc-step ' + st;
+  const status = el.querySelector('.proc-step-status');
+  if (st === 'running') {
+    status.innerHTML = '<span class="spinner">⏳</span> ' + label;
+  } else {
+    status.textContent = label;
+  }
+}
+
+function showError(msg) {
+  const errEl = document.getElementById('proc-error');
+  errEl.classList.remove('hidden');
+  errEl.innerHTML = `
+    <div class="error-banner">
+      <div class="icon">⚠️</div>
+      <div class="msg">
+        <h4>Xử lý thất bại</h4>
+        <p>${msg}</p>
+      </div>
+    </div>`;
+  document.getElementById('proc-nav').innerHTML = `
+    <button class="btn-secondary" onclick="goto(1)">← Quay lại cài đặt</button>
+    <button class="btn-secondary" onclick="goto(0)">Chọn file khác</button>`;
+}
+
+// ── LOG ──────────────────────────────
+function addLog(msg, level) {
+  const box = document.getElementById('log-box');
+  const ts = new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${ts}</span><span class="log-msg ${level||'info'}">${escapeHtml(msg)}</span>`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('log-box').innerHTML = '';
+}
+
+// ── RESULTS ──────────────────────────
+function showResults(d) {
+  document.getElementById('result-icon').textContent = '✅';
+  document.getElementById('result-title').textContent = 'Xử lý thành công!';
+  document.getElementById('result-sub').textContent = 'File APK sạch đã sẵn sàng cài đặt';
+
+  const r = d.report || {};
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-val">${r.files_scanned||0}</div>
+      <div class="stat-label">Files đã quét</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--warn)">${r.files_modified||0}</div>
+      <div class="stat-label">Files đã sửa</div>
+    </div>
+    <div class="stat-card highlight">
+      <div class="stat-val">${r.ads_methods_blocked||0}</div>
+      <div class="stat-label">Ads đã chặn</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--error)">${r.store_redirects_blocked||0}</div>
+      <div class="stat-label">Redirects bị chặn</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--success)">${r.xml_entries_removed||0}</div>
+      <div class="stat-label">XML entries xoá</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--success)">✓</div>
+      <div class="stat-label">Đã ký số</div>
+    </div>`;
+
+  document.getElementById('output-info').innerHTML = `
+    <div class="output-card">
+      <div class="icon">📦</div>
+      <div class="info">
+        <h4>${d.fileName || 'APK sạch'}</h4>
+        <p>${d.outputDir || ''}</p>
+      </div>
+    </div>`;
+}
+
+// ── OPEN FOLDER ──────────────────────
+async function openFolder() {
+  try {
+    await fetch('/api/open-folder', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({dir: state.outputDir || state.options.outputDir}),
+    });
+  } catch (e) { /* ignore */ }
+}
+
+// ── RESET ────────────────────────────
+function resetAll() {
+  resetFile();
+  state.report = null;
+  state.outputFile = '';
+  state.outputDir = '';
+  // Reset process steps
+  for (let i = 0; i < 4; i++) setStepState(i, 'idle', 'Chờ');
+  clearLog();
+  document.getElementById('proc-error').classList.add('hidden');
+  document.getElementById('proc-nav').innerHTML = '';
+  goto(0);
+}
+
+// ── UTILS ────────────────────────────
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  if (bytes < 1024*1024*1024) return (bytes/1024/1024).toFixed(1) + ' MB';
+  return (bytes/1024/1024/1024).toFixed(2) + ' GB';
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>

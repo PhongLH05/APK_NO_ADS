@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller
+# We can ignore build/ and keep dist/ if needed, but normally dist/ is also ignored.
+# Let's ignore build/ and the spec file, but keep dist/ in case they want the app built.
+# Actually, it's better to ignore dist/ as well since it can be rebuilt.
+build/
+dist/
+*.spec
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project local logs and temp dirs
+apk_cleaner/logs/
+apk_cleaner/temp/
+apk_cleaner/uploads/
+apk_cleaner/rebuilt.apk
+apk_cleaner/rebuilt_aligned.apk
+apk_cleaner/rebuilt_signed.apk
+
+# Large JAR files (we should ignore them so GitHub doesn't block large files)
+apk_cleaner/tools/*.jar
