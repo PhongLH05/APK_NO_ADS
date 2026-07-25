@@ -745,9 +745,30 @@ async function handleFile(file) {
     alert('Chỉ chấp nhận file .apk');
     return;
   }
+
+  // Fast path: if file.path exists (native WebKit drag drop / picker)
+  if (file.path) {
+    try {
+      const res = await fetch('/api/set-path', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({path: file.path})
+      });
+      if (res.ok) {
+        const data = await res.json();
+        state.apkPath = data.path;
+        state.apkName = data.name;
+        state.apkSize = data.size;
+        showFileInfo(data.name, data.size, false);
+        document.getElementById('btn-next-1').disabled = false;
+        return;
+      }
+    } catch(e) { /* fallback to upload */ }
+  }
+
   showFileInfo(file.name, file.size, true);
 
-  // Upload
+  // Upload fallback
   const prog = document.getElementById('dz-progress');
   const bar  = document.getElementById('dz-bar');
   prog.classList.add('active');
@@ -757,6 +778,7 @@ async function handleFile(file) {
     state.apkPath = data.path;
     state.apkName = data.name;
     state.apkSize = data.size;
+    showFileInfo(data.name, data.size, false);
     prog.classList.remove('active');
     document.getElementById('btn-next-1').disabled = false;
   } catch (e) {
