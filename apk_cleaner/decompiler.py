@@ -112,27 +112,43 @@ def check_prerequisites() -> bool:
     return ok
 
 
+def check_apk_integrity(apk_path: Path) -> tuple:
+    """Kiểm tra tính toàn vẹn Zip của file APK trước khi decompile."""
+    import zipfile
+    if not apk_path.exists():
+        return False, f"Không tìm thấy file: {apk_path.name}"
+    if apk_path.stat().st_size == 0:
+        return False, f"File {apk_path.name} rỗng (0 Bytes)."
+
+    try:
+        with zipfile.ZipFile(apk_path, 'r') as z:
+            bad_file = z.testzip()
+            if bad_file:
+                return False, f"Dữ liệu file '{bad_file}' bên trong APK bị hỏng."
+            return True, "OK"
+    except zipfile.BadZipFile:
+        return False, f"File '{apk_path.name}' bị thiếu dữ liệu hoặc bị hỏng giữa chừng (Incomplete/Truncated Zip). Vui lòng tải lại file APK."
+    except Exception as e:
+        return False, f"Lỗi đọc file APK: {e}"
+
+
 # ─────────────────────────────────────────────
 # Decompile APK → Smali
 # ─────────────────────────────────────────────
 def decompile_apk(apk_path: Path, output_dir: Path) -> bool:
     """
     Dùng apktool để decompile APK thành thư mục chứa Smali + XML.
-
-    Args:
-        apk_path:   Đường dẫn file APK đầu vào.
-        output_dir: Thư mục đầu ra (sẽ bị xóa và tạo lại nếu đã tồn tại).
-
-    Returns:
-        True nếu thành công, False nếu thất bại.
-
-    Raises:
-        FileNotFoundError: Nếu file APK không tồn tại.
     """
     apk_path = Path(apk_path)
 
     if not apk_path.exists():
         raise FileNotFoundError(f"Không tìm thấy file APK: {apk_path}")
+
+    # Kiểm tra toàn vẹn file Zip trước
+    valid, reason = check_apk_integrity(apk_path)
+    if not valid:
+        logger.error(f"❌ File APK không hợp lệ: {reason}")
+        return False
 
     if not apk_path.suffix.lower() == ".apk":
         logger.warning(f"File '{apk_path.name}' không có đuôi .apk — vẫn tiếp tục thử...")
