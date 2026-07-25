@@ -301,6 +301,7 @@ class APKCleanerApp(tk.Tk):
         self.var_output = tk.StringVar(value=str(config.OUTPUT_DIR))
         self.pipeline_thread = None
         self.log_queue = queue.Queue()
+        self.ui_queue = queue.Queue()
         self.is_running = False
         
         # Tools Status state
@@ -323,14 +324,29 @@ class APKCleanerApp(tk.Tk):
         # Init screens
         self._init_screens()
         
-        # Check tools status in background
-        threading.Thread(target=self._check_prerequisites_bg, daemon=True).start()
-        
         # Start event queue polling
         self._poll_logs()
+        self._poll_ui()
+
+        # Check tools status in background
+        threading.Thread(target=self._check_prerequisites_bg, daemon=True).start()
 
         # Show screen 1
         self.show_screen("select")
+
+    def _schedule_ui(self, func):
+        self.ui_queue.put(func)
+
+    def _poll_ui(self):
+        while not self.ui_queue.empty():
+            try:
+                task = self.ui_queue.get_nowait()
+                task()
+            except queue.Empty:
+                break
+            except Exception as e:
+                pass
+        self.after(50, self._poll_ui)
 
     def _setup_logger_override(self):
         config.init_directories()
@@ -455,12 +471,12 @@ class APKCleanerApp(tk.Tk):
         self.tools_status["signer"] = signer_ok
         self._update_tool_ui("signer", signer_ok, "Sẵn sàng" if signer_ok else "Thiếu file tools/uber-apk-signer.jar")
 
-        self.after(0, self._update_next_state)
+        self._schedule_ui(self._update_next_state)
 
     def _update_tool_ui(self, key, ok, text):
         lbl = self.tool_labels[key]
         color = THEME["success"] if ok else THEME["error"]
-        self.after(0, lambda: lbl.configure(text=text, fg=color))
+        self._schedule_ui(lambda: lbl.configure(text=text, foreground=color))
 
     # ══════════════════════════════════════════════
     # SCREEN 2: SETTINGS
@@ -649,7 +665,7 @@ class APKCleanerApp(tk.Tk):
         
         # Reset UI process state
         for lbl in self.step_rows:
-            lbl.configure(text="Đang chờ...", fg=THEME["text_dark"])
+            lbl.configure(text="Đang chờ...", foreground=THEME["text_dark"])
         self.log_text.delete("1.0", "end")
         self.btn_back_proc.set_state("disabled")
         
@@ -660,7 +676,7 @@ class APKCleanerApp(tk.Tk):
         self.pipeline_thread.start()
 
     def _set_step_state(self, step_idx, state_str, color):
-        self.after(0, lambda: self.step_rows[step_idx].configure(text=state_str, fg=color))
+        self._schedule_ui(lambda: self.step_rows[step_idx].configure(text=state_str, foreground=color))
 
     def _run_pipeline_worker(self):
         try:
@@ -725,36 +741,40 @@ class APKCleanerApp(tk.Tk):
 
             # Success
             self.logger.info(f"✨ Thành công! File lưu tại: {signed}")
-            self.after(1000, lambda: self._pipeline_success(report, signed))
+            self._pipeline_success(report, signed)
 
         except Exception as e:
             self.logger.error(f"Lỗi hệ thống: {e}")
-            self.after(0, lambda: self._pipeline_failed(f"Gặp ngoại lệ: {e}"))
+            self._pipeline_failed(f"Gặp ngoại lệ: {e}")
 
     def _pipeline_failed(self, reason):
-        self.is_running = False
-        self.btn_back_proc.set_state("normal")
-        self.after(0, lambda: messagebox.showerror("Lỗi xử lý", f"Không thể hoàn thành dọn dẹp APK:\n\n{reason}"))
+        def _apply():
+            self.is_running = False
+            self.btn_back_proc.set_state("normal")
+            messagebox.showerror("Lỗi xử lý", f"Không thể hoàn thành dọn dẹp APK:\n\n{reason}")
+        self._schedule_ui(_apply)
 
     def _pipeline_success(self, report, signed_file):
-        self.is_running = False
-        self.btn_back_proc.set_state("normal")
-        
-        # Populate result UI
-        self.res_icon.configure(text="✅")
-        self.res_title.configure(text="Làm Sạch Thành Công!", fg=THEME["success"])
-        self.stats_lbl.configure(text="Báo cáo kết quả chi tiết:")
-        
-        self.stat_widgets["scanned"].configure(text=str(report.get("files_scanned", 0)))
-        self.stat_widgets["modified"].configure(text=str(report.get("files_modified", 0)))
-        self.stat_widgets["ads_blocked"].configure(text=str(report.get("ads_methods_blocked", 0)))
-        self.stat_widgets["store_blocked"].configure(text=str(report.get("store_redirects_blocked", 0)))
-        self.stat_widgets["xml_removed"].configure(text=str(report.get("xml_entries_removed", 0)))
+        def _apply():
+            self.is_running = False
+            self.btn_back_proc.set_state("normal")
+            
+            # Populate result UI
+            self.res_icon.configure(text="✅")
+            self.res_title.configure(text="Làm Sạch Thành Công!", foreground=THEME["success"])
+            self.stats_lbl.configure(text="Báo cáo kết quả chi tiết:")
+            
+            self.stat_widgets["scanned"].configure(text=str(report.get("files_scanned", 0)))
+            self.stat_widgets["modified"].configure(text=str(report.get("files_modified", 0)))
+            self.stat_widgets["ads_blocked"].configure(text=str(report.get("ads_methods_blocked", 0)))
+            self.stat_widgets["store_blocked"].configure(text=str(report.get("store_redirects_blocked", 0)))
+            self.stat_widgets["xml_removed"].configure(text=str(report.get("xml_entries_removed", 0)))
 
-        self.lbl_out_file.configure(text=Path(signed_file).name)
-        self.lbl_out_path.configure(text=str(Path(signed_file).parent))
+            self.lbl_out_file.configure(text=Path(signed_file).name)
+            self.lbl_out_path.configure(text=str(Path(signed_file).parent))
 
-        self.show_screen("result")
+            self.show_screen("result")
+        self._schedule_ui(_apply)
 
     def _reset_to_start(self):
         self.apk_path = ""
