@@ -48,12 +48,34 @@ def check_jar(jar_path: Path, name: str) -> bool:
     return False
 
 
+def download_tools() -> bool:
+    """Tự động tải apktool.jar và uber-apk-signer.jar nếu chưa có."""
+    import urllib.request
+    config.TOOLS_DIR.mkdir(parents=True, exist_ok=True)
+
+    urls = {
+        config.APKTOOL_JAR: "https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar",
+        config.SIGNER_JAR: "https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar",
+    }
+
+    for jar_path, url in urls.items():
+        if not jar_path.exists():
+            logger.info(f"Đang tự động tải {jar_path.name}...")
+            try:
+                urllib.request.urlretrieve(url, jar_path)
+                logger.info(f"Tải thành công: {jar_path.name}")
+            except Exception as e:
+                logger.error(f"Lỗi khi tải {jar_path.name}: {e}")
+                return False
+    return True
+
+
 def check_prerequisites() -> bool:
     """
     Kiểm tra toàn bộ prerequisites:
     - Java có trên PATH
-    - apktool.jar tồn tại
-    - uber-apk-signer.jar tồn tại
+    - apktool.jar tồn tại (hoặc tự động tải)
+    - uber-apk-signer.jar tồn tại (hoặc tự động tải)
 
     Returns:
         True nếu tất cả đều hợp lệ, False nếu thiếu.
@@ -70,6 +92,10 @@ def check_prerequisites() -> bool:
         ok = False
     else:
         logger.info("Java: OK")
+
+    if not config.APKTOOL_JAR.exists() or not config.SIGNER_JAR.exists():
+        logger.info("Thiếu file JAR công cụ, đang thử tự động tải...")
+        download_tools()
 
     if not check_jar(config.APKTOOL_JAR, "apktool.jar"):
         logger.error("  → Tải apktool.jar từ: https://ibotpeaches.github.io/Apktool/")

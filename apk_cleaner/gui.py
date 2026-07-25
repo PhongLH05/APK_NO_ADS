@@ -437,10 +437,15 @@ class APKCleanerApp(tk.Tk):
             self.btn_next_select.set_state("disabled")
 
     def _check_prerequisites_bg(self):
-        from decompiler import check_java
+        from decompiler import check_java, download_tools
         java_ok = check_java()
         self.tools_status["java"] = java_ok
         self._update_tool_ui("java", java_ok, "Sẵn sàng" if java_ok else "Chưa cài đặt (Cần Java SDK)")
+
+        if not config.APKTOOL_JAR.exists() or not config.SIGNER_JAR.exists():
+            self._update_tool_ui("apktool", False, "Đang tải công cụ...")
+            self._update_tool_ui("signer", False, "Đang tải công cụ...")
+            download_tools()
 
         apktool_ok = config.APKTOOL_JAR.exists()
         self.tools_status["apktool"] = apktool_ok
