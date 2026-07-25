@@ -1,8 +1,8 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════
-# build_macos.sh — Đóng gói APK Cleaner thành .app
-# Chạy: chmod +x build_macos.sh && ./build_macos.sh
-# Kết quả: dist/APK Cleaner.app
+# build_macos.sh — Đóng gói APK Cleaner thành .app Native macOS
+# Đã chuyển sang Swift Native App Engine (WKWebView)
+# Dễ dùng, cực đẹp, 100% không bị lỗi màn hình đen của Tcl/Tk cũ.
 # ═══════════════════════════════════════════════
 
 set -e
@@ -13,90 +13,78 @@ cd "$SCRIPT_DIR"
 
 echo ""
 echo "╔═══════════════════════════════════════════════╗"
-echo "║   APK Cleaner — Build macOS Native App       ║"
+echo "║   APK Cleaner — Build macOS Native App (Swift) ║"
 echo "╚═══════════════════════════════════════════════╝"
 echo ""
 
-# ── 1. Kiểm tra Python ───────────────────────
-echo "🔍  Kiểm tra Python..."
-if ! command -v python3 &>/dev/null; then
-    echo "❌  python3 không tìm thấy!"
-    exit 1
-fi
-PYTHON=$(which python3)
-echo "   ✅ $PYTHON"
+# ── 1. Clean old build ───────────────────────
+echo "🧹  Dọn dẹp build cũ..."
+rm -rf "dist/${APP_NAME}.app"
+mkdir -p "dist/${APP_NAME}.app/Contents/MacOS"
+mkdir -p "dist/${APP_NAME}.app/Contents/Resources"
 
-# ── 2. Cài dependencies ──────────────────────
+# ── 2. Biên dịch Swift Native App Launcher ───
 echo ""
-echo "📦  Cài đặt dependencies..."
-$PYTHON -m pip install pyinstaller -q 2>/dev/null
-echo "   ✅ PyInstaller sẵn sàng"
+echo "⚙️  Biên dịch Swift Native App Engine..."
+swiftc -O main.swift -o "dist/${APP_NAME}.app/Contents/MacOS/${APP_NAME}"
+echo "   ✅ Native macOS App Binary compiled"
 
-# ── 3. Clean build cũ ────────────────────────
+# ── 3. Copy Resources ────────────────────────
 echo ""
-echo "🧹  Dọn build cũ..."
-rm -rf build/ dist/ *.spec
-echo "   ✅ Sạch"
+echo "📦  Đóng gói tài nguyên và mã nguồn..."
+cp -R static "dist/${APP_NAME}.app/Contents/Resources/"
+cp -R tools "dist/${APP_NAME}.app/Contents/Resources/"
+cp -R patterns "dist/${APP_NAME}.app/Contents/Resources/"
+cp config.py "dist/${APP_NAME}.app/Contents/Resources/"
+cp decompiler.py "dist/${APP_NAME}.app/Contents/Resources/"
+cp cleaner.py "dist/${APP_NAME}.app/Contents/Resources/"
+cp recompiler.py "dist/${APP_NAME}.app/Contents/Resources/"
+cp logger.py "dist/${APP_NAME}.app/Contents/Resources/"
+cp gui.py "dist/${APP_NAME}.app/Contents/Resources/"
 
-# ── 4. Build .app ────────────────────────────
-echo ""
-echo "🔨  Đang build ${APP_NAME}.app ..."
-echo ""
-
-# Copy icon vào vị trí
-mkdir -p static
 if [ -f "static/icon.icns" ]; then
-    echo "   ✅ Đã tìm thấy icon.icns"
-else
-    echo "   ⚠️ Không thấy static/icon.icns, sẽ sử dụng icon mặc định"
+    cp static/icon.icns "dist/${APP_NAME}.app/Contents/Resources/icon.icns"
 fi
+echo "   ✅ Tài nguyên hoàn tất"
 
-$PYTHON -m PyInstaller \
-    --name "${APP_NAME}" \
-    --windowed \
-    --icon "static/icon.icns" \
-    --add-data "patterns:patterns" \
-    --add-data "tools:tools" \
-    --add-data "config.py:." \
-    --add-data "decompiler.py:." \
-    --add-data "cleaner.py:." \
-    --add-data "recompiler.py:." \
-    --add-data "logger.py:." \
-    --add-data "gui.py:." \
-    --hidden-import config \
-    --hidden-import decompiler \
-    --hidden-import cleaner \
-    --hidden-import recompiler \
-    --hidden-import logger \
-    --hidden-import concurrent.futures \
-    --noconfirm \
-    --clean \
-    app.py
-
-# ── 5. Kiểm tra kết quả ─────────────────────
+# ── 4. Tạo file Info.plist chuẩn macOS ────────
 echo ""
-if [ -d "dist/${APP_NAME}.app" ]; then
-    SIZE=$(du -sh "dist/${APP_NAME}.app" | cut -f1)
-    echo "═══════════════════════════════════════════════"
-    echo "✅  BUILD THÀNH CÔNG!"
-    echo ""
-    echo "   📦  dist/${APP_NAME}.app  (${SIZE})"
-    echo ""
-    echo "   Cách sử dụng:"
-    echo "   1. Kéo thả file 'dist/${APP_NAME}.app' vào thư mục Applications trên Mac."
-    echo "   2. Hãy chắc chắn rằng bạn đã đặt apktool.jar"
-    echo "      và uber-apk-signer.jar vào thư mục: tools/"
-    echo "      (đường dẫn tương đối cùng cấp với file app.py nếu chạy bằng code,"
-    echo "       hoặc bỏ trực tiếp vào APK Cleaner.app/Contents/Resources/tools/ nếu chạy app bundle)"
-    echo "   3. Double-click để khởi chạy native!"
-    echo ""
-    echo "   Mở thư mục chứa app:"
-    echo "   open dist/"
-    echo "═══════════════════════════════════════════════"
+echo "📄  Tạo file Info.plist..."
+cat <<EOF > "dist/${APP_NAME}.app/Contents/Info.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>${APP_NAME}</string>
+    <key>CFBundleIconFile</key>
+    <string>icon.icns</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.phonglh.apkcleaner</string>
+    <key>CFBundleName</key>
+    <string>${APP_NAME}</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>3.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>
+EOF
 
-    # Mở thư mục dist
-    open dist/
-else
-    echo "❌  Build thất bại! Kiểm tra log ở trên."
-    exit 1
-fi
+echo ""
+SIZE=$(du -sh "dist/${APP_NAME}.app" | cut -f1)
+echo "═══════════════════════════════════════════════"
+echo "✅  BUILD THÀNH CÔNG!"
+echo ""
+echo "   📦  dist/${APP_NAME}.app  (${SIZE})"
+echo ""
+echo "   Cách sử dụng:"
+echo "   1. Kéo thả file 'dist/${APP_NAME}.app' vào thư mục /Applications/"
+echo "   2. Double-click để khởi chạy Native trên Mac!"
+echo "═══════════════════════════════════════════════"
+
+open dist/
