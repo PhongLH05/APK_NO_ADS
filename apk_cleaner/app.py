@@ -15,4 +15,9 @@ from gui import APKCleanerApp
 
 if __name__ == "__main__":
     app = APKCleanerApp()
+    try:
+        app.update_idletasks()
+        app.update()
+    except Exception:
+        pass
     app.mainloop()

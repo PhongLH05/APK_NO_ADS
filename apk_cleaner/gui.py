@@ -286,53 +286,23 @@ class APKCleanerApp(tk.Tk):
         except Exception:
             pass
 
-        # Force window to front and focus on macOS
-        self.deiconify()
-        self.lift()
-        self.attributes("-topmost", True)
-        self.after(600, lambda: self.attributes("-topmost", False))
-
-        # State Variables
-        self.apk_path = ""
-        self.var_ads = tk.BooleanVar(value=True)
-        self.var_store = tk.BooleanVar(value=True)
-        self.var_xml = tk.BooleanVar(value=True)
-        self.var_keystore = tk.StringVar(value="")
-        self.var_output = tk.StringVar(value=str(config.OUTPUT_DIR))
-        self.pipeline_thread = None
-        self.log_queue = queue.Queue()
-        self.ui_queue = queue.Queue()
-        self.is_running = False
-        
-        # Tools Status state
-        self.tools_status = {"java": False, "apktool": False, "signer": False}
-
-        # Setup Logging redirection
-        self._setup_logger_override()
-
-        # Build Layout
-        self._build_header()
-        
-        # Main container for screens
-        self.container = tk.Frame(self, bg=THEME["bg"])
-        self.container.pack(fill="both", expand=True, padx=24, pady=16)
-
-        # Screens dict
-        self.screens = {}
-        self.current_screen = None
-        
-        # Init screens
-        self._init_screens()
-        
-        # Start event queue polling
-        self._poll_logs()
-        self._poll_ui()
-
         # Check tools status in background
         threading.Thread(target=self._check_prerequisites_bg, daemon=True).start()
 
         # Show screen 1
         self.show_screen("select")
+
+        # Flush Cocoa layout buffer and bring window to front on macOS
+        try:
+            self.update_idletasks()
+            self.update()
+            self.deiconify()
+            self.lift()
+            self.focus_force()
+            self.attributes("-topmost", True)
+            self.after(600, lambda: self.attributes("-topmost", False))
+        except Exception:
+            pass
 
     def _schedule_ui(self, func):
         self.ui_queue.put(func)
